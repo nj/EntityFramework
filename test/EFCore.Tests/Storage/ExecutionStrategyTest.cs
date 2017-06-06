@@ -14,7 +14,7 @@ using Xunit;
 
 namespace Microsoft.EntityFrameworkCore.Storage
 {
-    public class ExecutionStrategyTests
+    public class ExecutionStrategyTest
     {
         public class TestExecutionStrategy : ExecutionStrategy
         {

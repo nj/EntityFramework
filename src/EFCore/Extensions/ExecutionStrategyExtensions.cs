@@ -273,7 +273,9 @@ namespace Microsoft.EntityFrameworkCore
         /// <typeparam name="TResult">The return type of <paramref name="operation" />.</typeparam>
         /// <returns>The result from the operation.</returns>
         public static TResult Execute<TState, TResult>(
-            [NotNull] this IExecutionStrategy strategy, [NotNull] Func<TState, TResult> operation, [CanBeNull] TState state)
+            [NotNull] this IExecutionStrategy strategy,
+            [NotNull] Func<TState, TResult> operation,
+            [CanBeNull] TState state)
             => Check.NotNull(strategy, nameof(strategy)).Execute(operation, verifySucceeded: null, state: state);
 
         /// <summary>
@@ -305,9 +307,230 @@ namespace Microsoft.EntityFrameworkCore
             => Check.NotNull(strategy, nameof(strategy)).ExecuteAsync(operation, verifySucceeded: null, state: state, cancellationToken: cancellationToken);
 
         /// <summary>
-        ///     Executes the specified operation in a transaction and returns the result after commiting it.
+        ///     Executes the specified operation in a transaction.
         /// </summary>
-        /// <param name="strategy">The strategy that will be used for the execution.</param>
+        /// <param name="strategy"> The strategy that will be used for the execution. </param>
+        /// <param name="operation">
+        ///     A delegate representing an executable operation.
+        /// </param>
+        /// <param name="verifySucceeded">
+        ///     A delegate that tests whether the operation succeeded even though an exception was thrown when the
+        ///     transaction was being committed.
+        /// </param>
+        /// <param name="context"> The context that will be used to start the transaction. </param>
+        /// <typeparam name="TContext"> The type of the supplied context instance. </typeparam>
+        /// <exception cref="RetryLimitExceededException">
+        ///     Thrown if the operation has not succeeded after the configured number of retries.
+        /// </exception>
+        public static void ExecuteInTransaction<TContext>(
+            [NotNull] this IExecutionStrategy strategy,
+            [NotNull] Action<TContext> operation,
+            [NotNull] Func<TContext, bool> verifySucceeded,
+            [NotNull] TContext context)
+            where TContext : DbContext
+            => strategy.ExecuteInTransaction<TContext, object>((c, s) => operation(c), (c, s) => verifySucceeded(c), null, context);
+
+        /// <summary>
+        ///     Executes the specified asynchronous operation in a transaction.
+        /// </summary>
+        /// <param name="strategy"> The strategy that will be used for the execution. </param>
+        /// <param name="operation">
+        ///     A function that returns a started task.
+        /// </param>
+        /// <param name="verifySucceeded">
+        ///     A delegate that tests whether the operation succeeded even though an exception was thrown when the
+        ///     transaction was being committed.
+        /// </param>
+        /// <param name="context"> The context that will be used to start the transaction. </param>
+        /// <typeparam name="TContext"> The type of the supplied context instance. </typeparam>
+        /// <returns>
+        ///     A task that will run to completion if the original task completes successfully (either the
+        ///     first time or after retrying transient failures). If the task fails with a non-transient error or
+        ///     the retry limit is reached, the returned task will become faulted and the exception must be observed.
+        /// </returns>
+        /// <exception cref="RetryLimitExceededException">
+        ///     Thrown if the operation has not succeeded after the configured number of retries.
+        /// </exception>
+        public static Task ExecuteInTransactionAsync<TContext>(
+            [NotNull] this IExecutionStrategy strategy,
+            [NotNull] Func<TContext, Task> operation,
+            [NotNull] Func<TContext, Task<bool>> verifySucceeded,
+            [NotNull] TContext context)
+            where TContext : DbContext
+            => strategy.ExecuteInTransactionAsync<TContext, object>((c, s, ct) => operation(c), (c, s, ct) => verifySucceeded(c), null, context, default(CancellationToken));
+
+        /// <summary>
+        ///     Executes the specified asynchronous operation in a transaction.
+        /// </summary>
+        /// <param name="strategy"> The strategy that will be used for the execution. </param>
+        /// <param name="operation">
+        ///     A function that returns a started task.
+        /// </param>
+        /// <param name="verifySucceeded">
+        ///     A delegate that tests whether the operation succeeded even though an exception was thrown when the
+        ///     transaction was being committed.
+        /// </param>
+        /// <param name="context"> The context that will be used to start the transaction. </param>
+        /// <param name="cancellationToken">
+        ///     A cancellation token used to cancel the retry operation, but not operations that are already in flight
+        ///     or that already completed successfully.
+        /// </param>
+        /// <typeparam name="TContext"> The type of the supplied context instance. </typeparam>
+        /// <returns>
+        ///     A task that will run to completion if the original task completes successfully (either the
+        ///     first time or after retrying transient failures). If the task fails with a non-transient error or
+        ///     the retry limit is reached, the returned task will become faulted and the exception must be observed.
+        /// </returns>
+        /// <exception cref="RetryLimitExceededException">
+        ///     Thrown if the operation has not succeeded after the configured number of retries.
+        /// </exception>
+        public static Task ExecuteInTransactionAsync<TContext>(
+            [NotNull] this IExecutionStrategy strategy,
+            [NotNull] Func<TContext, CancellationToken, Task> operation,
+            [NotNull] Func<TContext, CancellationToken, Task<bool>> verifySucceeded,
+            [NotNull] TContext context,
+            CancellationToken cancellationToken = default(CancellationToken))
+            where TContext : DbContext
+            => strategy.ExecuteInTransactionAsync<TContext, object>((c, s, ct) => operation(c, ct), (c, s, ct) => verifySucceeded(c, ct), null, context, cancellationToken);
+
+        /// <summary>
+        ///     Executes the specified operation in a transaction and returns the result.
+        /// </summary>
+        /// <param name="strategy"> The strategy that will be used for the execution. </param>
+        /// <param name="operation">
+        ///     A delegate representing an executable operation that returns the result of type <typeparamref name="TResult" />.
+        /// </param>
+        /// <param name="verifySucceeded">
+        ///     A delegate that tests whether the operation succeeded even though an exception was thrown when the
+        ///     transaction was being committed.
+        /// </param>
+        /// <param name="context"> The context that will be used to start the transaction. </param>
+        /// <typeparam name="TContext"> The type of the supplied context instance. </typeparam>
+        /// <typeparam name="TResult"> The return type of <paramref name="operation" />. </typeparam>
+        /// <returns> The result from the operation. </returns>
+        /// <exception cref="RetryLimitExceededException">
+        ///     Thrown if the operation has not succeeded after the configured number of retries.
+        /// </exception>
+        public static TResult ExecuteInTransaction<TContext, TResult>(
+            [NotNull] this IExecutionStrategy strategy,
+            [NotNull] Func<TContext, TResult> operation,
+            [NotNull] Func<TContext, bool> verifySucceeded,
+            [NotNull] TContext context)
+            where TContext : DbContext
+            => strategy.ExecuteInTransaction<TContext, object, TResult>((c, s) => operation(c), (c, s) => verifySucceeded(c), null, context);
+
+        /// <summary>
+        ///     Executes the specified asynchronous operation in a transaction and returns the result.
+        /// </summary>
+        /// <param name="strategy"> The strategy that will be used for the execution. </param>
+        /// <param name="operation">
+        ///     A function that returns a started task of type <typeparamref name="TResult" />.
+        /// </param>
+        /// <param name="verifySucceeded">
+        ///     A delegate that tests whether the operation succeeded even though an exception was thrown when the
+        ///     transaction was being committed.
+        /// </param>
+        /// <param name="context"> The context that will be used to start the transaction. </param>
+        /// <param name="cancellationToken">
+        ///     A cancellation token used to cancel the retry operation, but not operations that are already in flight
+        ///     or that already completed successfully.
+        /// </param>
+        /// <typeparam name="TContext"> The type of the supplied context instance. </typeparam>
+        /// <typeparam name="TResult"> The result type of the <see cref="Task{T}" /> returned by <paramref name="operation" />. </typeparam>
+        /// <returns>
+        ///     A task that will run to completion if the original task completes successfully (either the
+        ///     first time or after retrying transient failures). If the task fails with a non-transient error or
+        ///     the retry limit is reached, the returned task will become faulted and the exception must be observed.
+        /// </returns>
+        /// <exception cref="RetryLimitExceededException">
+        ///     Thrown if the operation has not succeeded after the configured number of retries.
+        /// </exception>
+        public static Task<TResult> ExecuteInTransactionAsync<TContext, TResult>(
+            [NotNull] this IExecutionStrategy strategy,
+            [NotNull] Func<TContext, CancellationToken, Task<TResult>> operation,
+            [NotNull] Func<TContext, CancellationToken, Task<bool>> verifySucceeded,
+            [NotNull] TContext context,
+            CancellationToken cancellationToken = default(CancellationToken))
+            where TContext : DbContext
+            => strategy.ExecuteInTransactionAsync<TContext, object, TResult>((c, s, ct) => operation(c, ct), (c, s, ct) => verifySucceeded(c, ct), null, context, cancellationToken);
+
+        /// <summary>
+        ///     Executes the specified operation in a transaction.
+        /// </summary>
+        /// <param name="strategy"> The strategy that will be used for the execution. </param>
+        /// <param name="operation">
+        ///     A delegate representing an executable operation.
+        /// </param>
+        /// <param name="verifySucceeded">
+        ///     A delegate that tests whether the operation succeeded even though an exception was thrown when the
+        ///     transaction was being committed.
+        /// </param>
+        /// <param name="state"> The state that will be passed to the operation. </param>
+        /// <param name="context"> The context that will be used to start the transaction. </param>
+        /// <typeparam name="TContext"> The type of the supplied context instance. </typeparam>
+        /// <typeparam name="TState"> The type of the state. </typeparam>
+        /// <exception cref="RetryLimitExceededException">
+        ///     Thrown if the operation has not succeeded after the configured number of retries.
+        /// </exception>
+        public static void ExecuteInTransaction<TContext, TState>(
+            [NotNull] this IExecutionStrategy strategy,
+            [NotNull] Action<TContext, TState> operation,
+            [NotNull] Func<TContext, TState, bool> verifySucceeded,
+            [CanBeNull] TState state,
+            [NotNull] TContext context)
+            where TContext : DbContext
+            => strategy.ExecuteInTransaction((c, s) =>
+                {
+                    operation(c, s);
+                    return true;
+                },
+                verifySucceeded, state, context);
+
+        /// <summary>
+        ///     Executes the specified asynchronous operation in a transaction.
+        /// </summary>
+        /// <param name="strategy"> The strategy that will be used for the execution. </param>
+        /// <param name="operation">
+        ///     A function that returns a started task.
+        /// </param>
+        /// <param name="verifySucceeded">
+        ///     A delegate that tests whether the operation succeeded even though an exception was thrown when the
+        ///     transaction was being committed.
+        /// </param>
+        /// <param name="state"> The state that will be passed to the operation. </param>
+        /// <param name="context"> The context that will be used to start the transaction. </param>
+        /// <param name="cancellationToken">
+        ///     A cancellation token used to cancel the retry operation, but not operations that are already in flight
+        ///     or that already completed successfully.
+        /// </param>
+        /// <typeparam name="TContext"> The type of the supplied context instance. </typeparam>
+        /// <typeparam name="TState"> The type of the state. </typeparam>
+        /// <returns>
+        ///     A task that will run to completion if the original task completes successfully (either the
+        ///     first time or after retrying transient failures). If the task fails with a non-transient error or
+        ///     the retry limit is reached, the returned task will become faulted and the exception must be observed.
+        /// </returns>
+        /// <exception cref="RetryLimitExceededException">
+        ///     Thrown if the operation has not succeeded after the configured number of retries.
+        /// </exception>
+        public static Task ExecuteInTransactionAsync<TContext, TState>(
+            [NotNull] this IExecutionStrategy strategy,
+            [NotNull] Func<TContext, TState, CancellationToken, Task> operation,
+            [NotNull] Func<TContext, TState, CancellationToken, Task<bool>> verifySucceeded,
+            [CanBeNull] TState state,
+            [NotNull] TContext context,
+            CancellationToken cancellationToken = default(CancellationToken))
+            where TContext : DbContext
+            => strategy.ExecuteInTransactionAsync(async (c, s, ct) =>
+                {
+                    await operation(c, s, ct);
+                    return true;
+                }, verifySucceeded, state, context, cancellationToken);
+
+        /// <summary>
+        ///     Executes the specified operation in a transaction and returns the result.
+        /// </summary>
+        /// <param name="strategy"> The strategy that will be used for the execution. </param>
         /// <param name="operation">
         ///     A delegate representing an executable operation that returns the result of type <typeparamref name="TResult" />.
         /// </param>
@@ -317,36 +540,26 @@ namespace Microsoft.EntityFrameworkCore
         /// </param>
         /// <param name="state"> The state that will be passed to the operation. </param>
         /// <param name="context"> The context that will be used to start the transaction. </param>
+        /// <typeparam name="TContext"> The type of the supplied context instance. </typeparam>
         /// <typeparam name="TState"> The type of the state. </typeparam>
         /// <typeparam name="TResult"> The return type of <paramref name="operation" />. </typeparam>
         /// <returns> The result from the operation. </returns>
         /// <exception cref="RetryLimitExceededException">
         ///     Thrown if the operation has not succeeded after the configured number of retries.
         /// </exception>
-        public static TResult ExecuteInTransaction<TState, TResult>(
+        public static TResult ExecuteInTransaction<TContext, TState, TResult>(
             [NotNull] this IExecutionStrategy strategy,
-            [NotNull] Func<TState, TResult> operation,
-            [CanBeNull] Func<TState, bool> verifySucceeded,
+            [NotNull] Func<TContext, TState, TResult> operation,
+            [NotNull] Func<TContext, TState, bool> verifySucceeded,
             [CanBeNull] TState state,
-            [NotNull] DbContext context)
-            => Check.NotNull(strategy, nameof(strategy)).Execute(s =>
-                {
-                    using (var transaction = s.Context.Database.BeginTransaction())
-                    {
-                        s.CommitFailed = false;
-                        s.Result = s.Operation(s.State);
-                        s.CommitFailed = true;
-                        transaction.Commit();
-                    }
-                    return s.Result;
-                },
-                s => new ExecutionResult<TResult>(s.CommitFailed && s.VerifySucceeded != null && s.VerifySucceeded(s.State), s.Result),
-                new ExecutionState<TState, TResult>(Check.NotNull(operation, nameof(operation)), verifySucceeded, state, Check.NotNull(context, nameof(context))));
+            [NotNull] TContext context)
+            where TContext : DbContext
+            => ExecuteInTransaction(strategy, operation, verifySucceeded, state, context, c => c.Database.BeginTransaction());
 
         /// <summary>
-        ///     Executes the specified asynchronous operation and returns the result.
+        ///     Executes the specified asynchronous operation in a transaction and returns the result.
         /// </summary>
-        /// <param name="strategy">The strategy that will be used for the execution.</param>
+        /// <param name="strategy"> The strategy that will be used for the execution. </param>
         /// <param name="operation">
         ///     A function that returns a started task of type <typeparamref name="TResult" />.
         /// </param>
@@ -354,12 +567,13 @@ namespace Microsoft.EntityFrameworkCore
         ///     A delegate that tests whether the operation succeeded even though an exception was thrown when the
         ///     transaction was being committed.
         /// </param>
+        /// <param name="state"> The state that will be passed to the operation. </param>
+        /// <param name="context"> The context that will be used to start the transaction. </param>
         /// <param name="cancellationToken">
         ///     A cancellation token used to cancel the retry operation, but not operations that are already in flight
         ///     or that already completed successfully.
         /// </param>
-        /// <param name="state"> The state that will be passed to the operation. </param>
-        /// <param name="context"> The context that will be used to start the transaction. </param>
+        /// <typeparam name="TContext"> The type of the supplied context instance. </typeparam>
         /// <typeparam name="TState"> The type of the state. </typeparam>
         /// <typeparam name="TResult"> The result type of the <see cref="Task{T}" /> returned by <paramref name="operation" />. </typeparam>
         /// <returns>
@@ -370,34 +584,123 @@ namespace Microsoft.EntityFrameworkCore
         /// <exception cref="RetryLimitExceededException">
         ///     Thrown if the operation has not succeeded after the configured number of retries.
         /// </exception>
-        public static Task<TResult> ExecuteInTransactionAsync<TState, TResult>(
+        public static Task<TResult> ExecuteInTransactionAsync<TContext, TState, TResult>(
             [NotNull] this IExecutionStrategy strategy,
-            [NotNull] Func<TState, CancellationToken, Task<TResult>> operation,
-            [CanBeNull] Func<TState, CancellationToken, Task<bool>> verifySucceeded,
+            [NotNull] Func<TContext, TState, CancellationToken, Task<TResult>> operation,
+            [NotNull] Func<TContext, TState, CancellationToken, Task<bool>> verifySucceeded,
             [CanBeNull] TState state,
-            [NotNull] DbContext context,
+            [NotNull] TContext context,
             CancellationToken cancellationToken = default(CancellationToken))
-            => Check.NotNull(strategy, nameof(strategy)).ExecuteAsync(async (s, c) =>
+            where TContext : DbContext
+            => ExecuteInTransactionAsync(strategy, operation, verifySucceeded, state, context, (c, ct) => c.Database.BeginTransactionAsync(ct), cancellationToken);
+
+        /// <summary>
+        ///     Executes the specified operation in a transaction and returns the result.
+        /// </summary>
+        /// <param name="strategy"> The strategy that will be used for the execution. </param>
+        /// <param name="operation">
+        ///     A delegate representing an executable operation that returns the result of type <typeparamref name="TResult" />.
+        /// </param>
+        /// <param name="verifySucceeded">
+        ///     A delegate that tests whether the operation succeeded even though an exception was thrown when the
+        ///     transaction was being committed.
+        /// </param>
+        /// <param name="state"> The state that will be passed to the operation. </param>
+        /// <param name="context"> The context that will be used to start the transaction. </param>
+        /// <param name="beginTransaction"> A delegate that begins a transaction using the given context. </param>
+        /// <typeparam name="TContext"> The type of the supplied context instance. </typeparam>
+        /// <typeparam name="TState"> The type of the state. </typeparam>
+        /// <typeparam name="TResult"> The return type of <paramref name="operation" />. </typeparam>
+        /// <returns> The result from the operation. </returns>
+        /// <exception cref="RetryLimitExceededException">
+        ///     Thrown if the operation has not succeeded after the configured number of retries.
+        /// </exception>
+        public static TResult ExecuteInTransaction<TContext, TState, TResult>(
+            [NotNull] IExecutionStrategy strategy,
+            [NotNull] Func<TContext, TState, TResult> operation,
+            [NotNull] Func<TContext, TState, bool> verifySucceeded,
+            [CanBeNull] TState state,
+            [NotNull] TContext context,
+            [NotNull] Func<TContext, IDbContextTransaction> beginTransaction)
+            where TContext : DbContext
+            => Check.NotNull(strategy, nameof(strategy)).Execute(s =>
                 {
-                    using (var transaction = await s.Context.Database.BeginTransactionAsync(c))
+                    Check.NotNull(beginTransaction, nameof(beginTransaction));
+                    using (var transaction = beginTransaction(s.Context))
                     {
                         s.CommitFailed = false;
-                        s.Result = await s.Operation(s.State, c);
+                        s.Result = s.Operation(s.Context, s.State);
                         s.CommitFailed = true;
                         transaction.Commit();
                     }
                     return s.Result;
                 },
-                async (s, c) => new ExecutionResult<TResult>(s.CommitFailed && await s.VerifySucceeded(s.State, c), s.Result),
-                new ExecutionStateAsync<TState, TResult>(Check.NotNull(operation, nameof(operation)), verifySucceeded, state, Check.NotNull(context, nameof(context))));
+                s => new ExecutionResult<TResult>(s.CommitFailed && s.VerifySucceeded(s.Context, s.State), s.Result),
+                new ExecutionState<TContext, TState, TResult>(
+                    Check.NotNull(operation, nameof(operation)), Check.NotNull(verifySucceeded, nameof(verifySucceeded)), state, Check.NotNull(context, nameof(context))));
 
-        private class ExecutionState<TState, TResult>
+        /// <summary>
+        ///     Executes the specified asynchronous operation in a transaction and returns the result.
+        /// </summary>
+        /// <param name="strategy"> The strategy that will be used for the execution. </param>
+        /// <param name="operation">
+        ///     A function that returns a started task of type <typeparamref name="TResult" />.
+        /// </param>
+        /// <param name="verifySucceeded">
+        ///     A delegate that tests whether the operation succeeded even though an exception was thrown when the
+        ///     transaction was being committed.
+        /// </param>
+        /// <param name="state"> The state that will be passed to the operation. </param>
+        /// <param name="context"> The context that will be used to start the transaction. </param>
+        /// <param name="beginTransaction"> A delegate that begins a transaction using the given context. </param>
+        /// <param name="cancellationToken">
+        ///     A cancellation token used to cancel the retry operation, but not operations that are already in flight
+        ///     or that already completed successfully.
+        /// </param>
+        /// <typeparam name="TContext"> The type of the supplied context instance. </typeparam>
+        /// <typeparam name="TState"> The type of the state. </typeparam>
+        /// <typeparam name="TResult"> The result type of the <see cref="Task{T}" /> returned by <paramref name="operation" />. </typeparam>
+        /// <returns>
+        ///     A task that will run to completion if the original task completes successfully (either the
+        ///     first time or after retrying transient failures). If the task fails with a non-transient error or
+        ///     the retry limit is reached, the returned task will become faulted and the exception must be observed.
+        /// </returns>
+        /// <exception cref="RetryLimitExceededException">
+        ///     Thrown if the operation has not succeeded after the configured number of retries.
+        /// </exception>
+        public static Task<TResult> ExecuteInTransactionAsync<TContext, TState, TResult>(
+            [NotNull] IExecutionStrategy strategy,
+            [NotNull] Func<TContext, TState, CancellationToken, Task<TResult>> operation,
+            [NotNull] Func<TContext, TState, CancellationToken, Task<bool>> verifySucceeded,
+            [CanBeNull] TState state,
+            [NotNull] TContext context,
+            [NotNull] Func<DbContext, CancellationToken, Task<IDbContextTransaction>> beginTransaction,
+            CancellationToken cancellationToken = default(CancellationToken))
+            where TContext : DbContext
+            => Check.NotNull(strategy, nameof(strategy)).ExecuteAsync(async (s, ct) =>
+                {
+                    Check.NotNull(beginTransaction, nameof(beginTransaction));
+                    using (var transaction = await beginTransaction(s.Context, cancellationToken))
+                    {
+                        s.CommitFailed = false;
+                        s.Result = await s.Operation(s.Context, s.State, ct);
+                        s.CommitFailed = true;
+                        transaction.Commit();
+                    }
+                    return s.Result;
+                },
+                async (s, c) => new ExecutionResult<TResult>(s.CommitFailed && await s.VerifySucceeded(s.Context, s.State, c), s.Result),
+                new ExecutionStateAsync<TContext, TState, TResult>(
+                    Check.NotNull(operation, nameof(operation)), Check.NotNull(verifySucceeded, nameof(verifySucceeded)), state, Check.NotNull(context, nameof(context))));
+
+        private class ExecutionState<TContext, TState, TResult>
+            where TContext : DbContext
         {
             public ExecutionState(
-                Func<TState, TResult> operation,
-                Func<TState, bool> verifySucceeded,
+                Func<TContext, TState, TResult> operation,
+                Func<TContext, TState, bool> verifySucceeded,
                 TState state,
-                DbContext context)
+                TContext context)
             {
                 Operation = operation;
                 VerifySucceeded = verifySucceeded;
@@ -405,21 +708,22 @@ namespace Microsoft.EntityFrameworkCore
                 Context = context;
             }
 
-            public Func<TState, TResult> Operation { get; }
-            public Func<TState, bool> VerifySucceeded { get; }
+            public Func<TContext, TState, TResult> Operation { get; }
+            public Func<TContext, TState, bool> VerifySucceeded { get; }
             public TState State { get; }
-            public DbContext Context { get; }
+            public TContext Context { get; }
             public TResult Result { get; set; }
             public bool CommitFailed { get; set; }
         }
 
-        private class ExecutionStateAsync<TState, TResult>
+        private class ExecutionStateAsync<TContext, TState, TResult>
+            where TContext : DbContext
         {
             public ExecutionStateAsync(
-                Func<TState, CancellationToken, Task<TResult>> operation,
-                Func<TState, CancellationToken, Task<bool>> verifySucceeded,
+                Func<TContext, TState, CancellationToken, Task<TResult>> operation,
+                Func<TContext, TState, CancellationToken, Task<bool>> verifySucceeded,
                 TState state,
-                DbContext context)
+                TContext context)
             {
                 Operation = operation;
                 VerifySucceeded = verifySucceeded;
@@ -427,10 +731,10 @@ namespace Microsoft.EntityFrameworkCore
                 Context = context;
             }
 
-            public Func<TState, CancellationToken, Task<TResult>> Operation { get; }
-            public Func<TState, CancellationToken, Task<bool>> VerifySucceeded { get; }
+            public Func<TContext, TState, CancellationToken, Task<TResult>> Operation { get; }
+            public Func<TContext, TState, CancellationToken, Task<bool>> VerifySucceeded { get; }
             public TState State { get; }
-            public DbContext Context { get; }
+            public TContext Context { get; }
             public TResult Result { get; set; }
             public bool CommitFailed { get; set; }
         }

@@ -406,6 +406,26 @@
       "Kind": "Removal"
     },
     {
+      "TypeId": "public static class Microsoft.EntityFrameworkCore.ExecutionStrategyExtensions",
+      "MemberId": "public static System.Threading.Tasks.Task<T1> ExecuteInTransactionAsync<T0, T1>(this Microsoft.EntityFrameworkCore.Storage.IExecutionStrategy strategy, System.Func<T0, System.Threading.CancellationToken, System.Threading.Tasks.Task<T1>> operation, System.Func<T0, System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Boolean>> verifySucceeded, T0 state, Microsoft.EntityFrameworkCore.DbContext context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
+      "Kind": "Removal"
+    },
+    {
+      "TypeId": "public static class Microsoft.EntityFrameworkCore.ExecutionStrategyExtensions",
+      "MemberId": "public static T1 ExecuteInTransaction<T0, T1>(this Microsoft.EntityFrameworkCore.Storage.IExecutionStrategy strategy, System.Func<T0, T1> operation, System.Func<T0, System.Boolean> verifySucceeded, T0 state, Microsoft.EntityFrameworkCore.DbContext context)",
+      "Kind": "Removal"
+    },
+    {
+      "TypeId": "public abstract class Microsoft.EntityFrameworkCore.Storage.ExecutionStrategy : Microsoft.EntityFrameworkCore.Storage.IExecutionStrategy",
+      "MemberId": "public virtual System.Threading.Tasks.Task<T1> ExecuteInTransactionAsync<T0, T1>(System.Func<T0, System.Threading.CancellationToken, System.Threading.Tasks.Task<T1>> operation, System.Func<T0, System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Boolean>> verifySucceeded, T0 state, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))",
+      "Kind": "Removal"
+    },
+    {
+      "TypeId": "public abstract class Microsoft.EntityFrameworkCore.Storage.ExecutionStrategy : Microsoft.EntityFrameworkCore.Storage.IExecutionStrategy",
+      "MemberId": "public virtual T1 ExecuteInTransaction<T0, T1>(System.Func<T0, T1> operation, System.Func<T0, System.Boolean> verifySucceeded, T0 state)",
+      "Kind": "Removal"
+    },
+    {
       "TypeId": "public class Microsoft.EntityFrameworkCore.Query.CompiledQueryCacheKeyGenerator : Microsoft.EntityFrameworkCore.Query.ICompiledQueryCacheKeyGenerator",
       "MemberId": "public .ctor(Microsoft.EntityFrameworkCore.Metadata.IModel model, Microsoft.EntityFrameworkCore.Internal.ICurrentDbContext currentContext)",
       "Kind": "Removal"
