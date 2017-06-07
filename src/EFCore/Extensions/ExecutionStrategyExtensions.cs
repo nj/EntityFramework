@@ -324,11 +324,11 @@ namespace Microsoft.EntityFrameworkCore
         /// </exception>
         public static void ExecuteInTransaction<TContext>(
             [NotNull] this IExecutionStrategy strategy,
+            [NotNull] TContext context,
             [NotNull] Action<TContext> operation,
-            [NotNull] Func<TContext, bool> verifySucceeded,
-            [NotNull] TContext context)
+            [NotNull] Func<TContext, bool> verifySucceeded)
             where TContext : DbContext
-            => strategy.ExecuteInTransaction<TContext, object>((c, s) => operation(c), (c, s) => verifySucceeded(c), null, context);
+            => strategy.ExecuteInTransaction<TContext, object>(context, (c, s) => operation(c), (c, s) => verifySucceeded(c), null);
 
         /// <summary>
         ///     Executes the specified asynchronous operation in a transaction.
@@ -357,7 +357,7 @@ namespace Microsoft.EntityFrameworkCore
             [NotNull] Func<TContext, Task<bool>> verifySucceeded,
             [NotNull] TContext context)
             where TContext : DbContext
-            => strategy.ExecuteInTransactionAsync<TContext, object>((c, s, ct) => operation(c), (c, s, ct) => verifySucceeded(c), null, context, default(CancellationToken));
+            => strategy.ExecuteInTransactionAsync<TContext, object>(context, (c, s, ct) => operation(c), (c, s, ct) => verifySucceeded(c), null, default(CancellationToken));
 
         /// <summary>
         ///     Executes the specified asynchronous operation in a transaction.
@@ -386,17 +386,18 @@ namespace Microsoft.EntityFrameworkCore
         /// </exception>
         public static Task ExecuteInTransactionAsync<TContext>(
             [NotNull] this IExecutionStrategy strategy,
+            [NotNull] TContext context,
             [NotNull] Func<TContext, CancellationToken, Task> operation,
             [NotNull] Func<TContext, CancellationToken, Task<bool>> verifySucceeded,
-            [NotNull] TContext context,
             CancellationToken cancellationToken = default(CancellationToken))
             where TContext : DbContext
-            => strategy.ExecuteInTransactionAsync<TContext, object>((c, s, ct) => operation(c, ct), (c, s, ct) => verifySucceeded(c, ct), null, context, cancellationToken);
+            => strategy.ExecuteInTransactionAsync<TContext, object>(context, (c, s, ct) => operation(c, ct), (c, s, ct) => verifySucceeded(c, ct), null, cancellationToken);
 
         /// <summary>
         ///     Executes the specified operation in a transaction and returns the result.
         /// </summary>
         /// <param name="strategy"> The strategy that will be used for the execution. </param>
+        /// <param name="context"> The context that will be used to start the transaction. </param>
         /// <param name="operation">
         ///     A delegate representing an executable operation that returns the result of type <typeparamref name="TResult" />.
         /// </param>
@@ -404,7 +405,6 @@ namespace Microsoft.EntityFrameworkCore
         ///     A delegate that tests whether the operation succeeded even though an exception was thrown when the
         ///     transaction was being committed.
         /// </param>
-        /// <param name="context"> The context that will be used to start the transaction. </param>
         /// <typeparam name="TContext"> The type of the supplied context instance. </typeparam>
         /// <typeparam name="TResult"> The return type of <paramref name="operation" />. </typeparam>
         /// <returns> The result from the operation. </returns>
@@ -413,11 +413,11 @@ namespace Microsoft.EntityFrameworkCore
         /// </exception>
         public static TResult ExecuteInTransaction<TContext, TResult>(
             [NotNull] this IExecutionStrategy strategy,
+            [NotNull] TContext context,
             [NotNull] Func<TContext, TResult> operation,
-            [NotNull] Func<TContext, bool> verifySucceeded,
-            [NotNull] TContext context)
+            [NotNull] Func<TContext, bool> verifySucceeded)
             where TContext : DbContext
-            => strategy.ExecuteInTransaction<TContext, object, TResult>((c, s) => operation(c), (c, s) => verifySucceeded(c), null, context);
+            => strategy.ExecuteInTransaction<TContext, object, TResult>(context, (c, s) => operation(c), (c, s) => verifySucceeded(c), null);
 
         /// <summary>
         ///     Executes the specified asynchronous operation in a transaction and returns the result.
@@ -447,12 +447,12 @@ namespace Microsoft.EntityFrameworkCore
         /// </exception>
         public static Task<TResult> ExecuteInTransactionAsync<TContext, TResult>(
             [NotNull] this IExecutionStrategy strategy,
+            [NotNull] TContext context,
             [NotNull] Func<TContext, CancellationToken, Task<TResult>> operation,
             [NotNull] Func<TContext, CancellationToken, Task<bool>> verifySucceeded,
-            [NotNull] TContext context,
             CancellationToken cancellationToken = default(CancellationToken))
             where TContext : DbContext
-            => strategy.ExecuteInTransactionAsync<TContext, object, TResult>((c, s, ct) => operation(c, ct), (c, s, ct) => verifySucceeded(c, ct), null, context, cancellationToken);
+            => strategy.ExecuteInTransactionAsync<TContext, object, TResult>(context, (c, s, ct) => operation(c, ct), (c, s, ct) => verifySucceeded(c, ct), null, cancellationToken);
 
         /// <summary>
         ///     Executes the specified operation in a transaction.
@@ -474,17 +474,19 @@ namespace Microsoft.EntityFrameworkCore
         /// </exception>
         public static void ExecuteInTransaction<TContext, TState>(
             [NotNull] this IExecutionStrategy strategy,
+            [NotNull] TContext context,
             [NotNull] Action<TContext, TState> operation,
             [NotNull] Func<TContext, TState, bool> verifySucceeded,
-            [CanBeNull] TState state,
-            [NotNull] TContext context)
+            [CanBeNull] TState state)
             where TContext : DbContext
-            => strategy.ExecuteInTransaction((c, s) =>
-                {
-                    operation(c, s);
-                    return true;
-                },
-                verifySucceeded, state, context);
+            => strategy.ExecuteInTransaction(
+                context,
+                (c, s) =>
+                    {
+                        operation(c, s);
+                        return true;
+                    },
+                verifySucceeded, state);
 
         /// <summary>
         ///     Executes the specified asynchronous operation in a transaction.
@@ -515,17 +517,19 @@ namespace Microsoft.EntityFrameworkCore
         /// </exception>
         public static Task ExecuteInTransactionAsync<TContext, TState>(
             [NotNull] this IExecutionStrategy strategy,
+            [NotNull] TContext context,
             [NotNull] Func<TContext, TState, CancellationToken, Task> operation,
             [NotNull] Func<TContext, TState, CancellationToken, Task<bool>> verifySucceeded,
             [CanBeNull] TState state,
-            [NotNull] TContext context,
             CancellationToken cancellationToken = default(CancellationToken))
             where TContext : DbContext
-            => strategy.ExecuteInTransactionAsync(async (c, s, ct) =>
-                {
-                    await operation(c, s, ct);
-                    return true;
-                }, verifySucceeded, state, context, cancellationToken);
+            => strategy.ExecuteInTransactionAsync(
+                context,
+                async (c, s, ct) =>
+                    {
+                        await operation(c, s, ct);
+                        return true;
+                    }, verifySucceeded, state, cancellationToken);
 
         /// <summary>
         ///     Executes the specified operation in a transaction and returns the result.
@@ -549,12 +553,12 @@ namespace Microsoft.EntityFrameworkCore
         /// </exception>
         public static TResult ExecuteInTransaction<TContext, TState, TResult>(
             [NotNull] this IExecutionStrategy strategy,
+            [NotNull] TContext context,
             [NotNull] Func<TContext, TState, TResult> operation,
             [NotNull] Func<TContext, TState, bool> verifySucceeded,
-            [CanBeNull] TState state,
-            [NotNull] TContext context)
+            [CanBeNull] TState state)
             where TContext : DbContext
-            => ExecuteInTransaction(strategy, operation, verifySucceeded, state, context, c => c.Database.BeginTransaction());
+            => ExecuteInTransaction(strategy, context, operation, verifySucceeded, state, c => c.Database.BeginTransaction());
 
         /// <summary>
         ///     Executes the specified asynchronous operation in a transaction and returns the result.
@@ -586,13 +590,13 @@ namespace Microsoft.EntityFrameworkCore
         /// </exception>
         public static Task<TResult> ExecuteInTransactionAsync<TContext, TState, TResult>(
             [NotNull] this IExecutionStrategy strategy,
+            [NotNull] TContext context,
             [NotNull] Func<TContext, TState, CancellationToken, Task<TResult>> operation,
             [NotNull] Func<TContext, TState, CancellationToken, Task<bool>> verifySucceeded,
             [CanBeNull] TState state,
-            [NotNull] TContext context,
             CancellationToken cancellationToken = default(CancellationToken))
             where TContext : DbContext
-            => ExecuteInTransactionAsync(strategy, operation, verifySucceeded, state, context, (c, ct) => c.Database.BeginTransactionAsync(ct), cancellationToken);
+            => ExecuteInTransactionAsync(strategy, context, operation, verifySucceeded, state, (c, ct) => c.Database.BeginTransactionAsync(ct), cancellationToken);
 
         /// <summary>
         ///     Executes the specified operation in a transaction and returns the result.
@@ -617,10 +621,10 @@ namespace Microsoft.EntityFrameworkCore
         /// </exception>
         public static TResult ExecuteInTransaction<TContext, TState, TResult>(
             [NotNull] IExecutionStrategy strategy,
+            [NotNull] TContext context,
             [NotNull] Func<TContext, TState, TResult> operation,
             [NotNull] Func<TContext, TState, bool> verifySucceeded,
             [CanBeNull] TState state,
-            [NotNull] TContext context,
             [NotNull] Func<TContext, IDbContextTransaction> beginTransaction)
             where TContext : DbContext
             => Check.NotNull(strategy, nameof(strategy)).Execute(s =>
@@ -637,7 +641,7 @@ namespace Microsoft.EntityFrameworkCore
                 },
                 s => new ExecutionResult<TResult>(s.CommitFailed && s.VerifySucceeded(s.Context, s.State), s.Result),
                 new ExecutionState<TContext, TState, TResult>(
-                    Check.NotNull(operation, nameof(operation)), Check.NotNull(verifySucceeded, nameof(verifySucceeded)), state, Check.NotNull(context, nameof(context))));
+                    Check.NotNull(context, nameof(context)), Check.NotNull(operation, nameof(operation)), Check.NotNull(verifySucceeded, nameof(verifySucceeded)), state));
 
         /// <summary>
         ///     Executes the specified asynchronous operation in a transaction and returns the result.
@@ -670,10 +674,10 @@ namespace Microsoft.EntityFrameworkCore
         /// </exception>
         public static Task<TResult> ExecuteInTransactionAsync<TContext, TState, TResult>(
             [NotNull] IExecutionStrategy strategy,
+            [NotNull] TContext context,
             [NotNull] Func<TContext, TState, CancellationToken, Task<TResult>> operation,
             [NotNull] Func<TContext, TState, CancellationToken, Task<bool>> verifySucceeded,
             [CanBeNull] TState state,
-            [NotNull] TContext context,
             [NotNull] Func<DbContext, CancellationToken, Task<IDbContextTransaction>> beginTransaction,
             CancellationToken cancellationToken = default(CancellationToken))
             where TContext : DbContext
@@ -691,21 +695,21 @@ namespace Microsoft.EntityFrameworkCore
                 },
                 async (s, c) => new ExecutionResult<TResult>(s.CommitFailed && await s.VerifySucceeded(s.Context, s.State, c), s.Result),
                 new ExecutionStateAsync<TContext, TState, TResult>(
-                    Check.NotNull(operation, nameof(operation)), Check.NotNull(verifySucceeded, nameof(verifySucceeded)), state, Check.NotNull(context, nameof(context))));
+                    Check.NotNull(context, nameof(context)), Check.NotNull(operation, nameof(operation)), Check.NotNull(verifySucceeded, nameof(verifySucceeded)), state));
 
         private class ExecutionState<TContext, TState, TResult>
             where TContext : DbContext
         {
             public ExecutionState(
+                TContext context,
                 Func<TContext, TState, TResult> operation,
                 Func<TContext, TState, bool> verifySucceeded,
-                TState state,
-                TContext context)
+                TState state)
             {
+                Context = context;
                 Operation = operation;
                 VerifySucceeded = verifySucceeded;
                 State = state;
-                Context = context;
             }
 
             public Func<TContext, TState, TResult> Operation { get; }
@@ -720,15 +724,15 @@ namespace Microsoft.EntityFrameworkCore
             where TContext : DbContext
         {
             public ExecutionStateAsync(
+                TContext context,
                 Func<TContext, TState, CancellationToken, Task<TResult>> operation,
                 Func<TContext, TState, CancellationToken, Task<bool>> verifySucceeded,
-                TState state,
-                TContext context)
+                TState state)
             {
+                Context = context;
                 Operation = operation;
                 VerifySucceeded = verifySucceeded;
                 State = state;
-                Context = context;
             }
 
             public Func<TContext, TState, CancellationToken, Task<TResult>> Operation { get; }

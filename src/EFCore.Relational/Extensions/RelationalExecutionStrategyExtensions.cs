@@ -31,12 +31,12 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// </exception>
         public static void ExecuteInTransaction<TContext>(
             [NotNull] this IExecutionStrategy strategy,
+            [NotNull] TContext context,
             IsolationLevel isolationLevel,
             [NotNull] Action<TContext> operation,
-            [NotNull] Func<TContext, bool> verifySucceeded,
-            [NotNull] TContext context)
+            [NotNull] Func<TContext, bool> verifySucceeded)
             where TContext : DbContext
-            => strategy.ExecuteInTransaction<TContext, object>(isolationLevel, (c, s) => operation(c), (c, s) => verifySucceeded(c), null, context);
+            => strategy.ExecuteInTransaction<TContext, object>(context, isolationLevel, (c, s) => operation(c), (c, s) => verifySucceeded(c), null);
 
         /// <summary>
         ///     Executes the specified asynchronous operation in a transaction.
@@ -62,12 +62,12 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// </exception>
         public static Task ExecuteInTransactionAsync<TContext>(
             [NotNull] this IExecutionStrategy strategy,
+            [NotNull] TContext context,
             IsolationLevel isolationLevel,
             [NotNull] Func<TContext, Task> operation,
-            [NotNull] Func<TContext, Task<bool>> verifySucceeded,
-            [NotNull] TContext context)
+            [NotNull] Func<TContext, Task<bool>> verifySucceeded)
             where TContext : DbContext
-            => strategy.ExecuteInTransactionAsync<TContext, object>(isolationLevel, (c, s, ct) => operation(c), (c, s, ct) => verifySucceeded(c), null, context, default(CancellationToken));
+            => strategy.ExecuteInTransactionAsync<TContext, object>(context, isolationLevel, (c, s, ct) => operation(c), (c, s, ct) => verifySucceeded(c), null, default(CancellationToken));
 
         /// <summary>
         ///     Executes the specified asynchronous operation in a transaction.
@@ -97,13 +97,13 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// </exception>
         public static Task ExecuteInTransactionAsync<TContext>(
             [NotNull] this IExecutionStrategy strategy,
+            [NotNull] TContext context,
             IsolationLevel isolationLevel,
             [NotNull] Func<TContext, CancellationToken, Task> operation,
             [NotNull] Func<TContext, CancellationToken, Task<bool>> verifySucceeded,
-            [NotNull] TContext context,
             CancellationToken cancellationToken = default(CancellationToken))
             where TContext : DbContext
-            => strategy.ExecuteInTransactionAsync<TContext, object>(isolationLevel, (c, s, ct) => operation(c, ct), (c, s, ct) => verifySucceeded(c, ct), null, context, cancellationToken);
+            => strategy.ExecuteInTransactionAsync<TContext, object>(context, isolationLevel, (c, s, ct) => operation(c, ct), (c, s, ct) => verifySucceeded(c, ct), null, cancellationToken);
 
         /// <summary>
         ///     Executes the specified operation in a transaction and returns the result.
@@ -126,12 +126,12 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// </exception>
         public static TResult ExecuteInTransaction<TContext, TResult>(
             [NotNull] this IExecutionStrategy strategy,
+            [NotNull] TContext context,
             IsolationLevel isolationLevel,
             [NotNull] Func<TContext, TResult> operation,
-            [NotNull] Func<TContext, bool> verifySucceeded,
-            [NotNull] TContext context)
+            [NotNull] Func<TContext, bool> verifySucceeded)
             where TContext : DbContext
-            => strategy.ExecuteInTransaction<TContext, object, TResult>(isolationLevel, (c, s) => operation(c), (c, s) => verifySucceeded(c), null, context);
+            => strategy.ExecuteInTransaction<TContext, object, TResult>(context, isolationLevel, (c, s) => operation(c), (c, s) => verifySucceeded(c), null);
 
         /// <summary>
         ///     Executes the specified asynchronous operation in a transaction and returns the result.
@@ -162,13 +162,13 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// </exception>
         public static Task<TResult> ExecuteInTransactionAsync<TContext, TResult>(
             [NotNull] this IExecutionStrategy strategy,
+            [NotNull] TContext context,
             IsolationLevel isolationLevel,
             [NotNull] Func<TContext, CancellationToken, Task<TResult>> operation,
             [NotNull] Func<TContext, CancellationToken, Task<bool>> verifySucceeded,
-            [NotNull] TContext context,
             CancellationToken cancellationToken = default(CancellationToken))
             where TContext : DbContext
-            => strategy.ExecuteInTransactionAsync<TContext, object, TResult>(isolationLevel, (c, s, ct) => operation(c, ct), (c, s, ct) => verifySucceeded(c, ct), null, context, cancellationToken);
+            => strategy.ExecuteInTransactionAsync<TContext, object, TResult>(context, isolationLevel, (c, s, ct) => operation(c, ct), (c, s, ct) => verifySucceeded(c, ct), null, cancellationToken);
 
         /// <summary>
         ///     Executes the specified operation in a transaction.
@@ -191,19 +191,21 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// </exception>
         public static void ExecuteInTransaction<TContext, TState>(
             [NotNull] this IExecutionStrategy strategy,
+            [NotNull] TContext context,
             IsolationLevel isolationLevel,
             [NotNull] Action<TContext, TState> operation,
             [NotNull] Func<TContext, TState, bool> verifySucceeded,
-            [CanBeNull] TState state,
-            [NotNull] TContext context)
+            [CanBeNull] TState state)
             where TContext : DbContext
-            => strategy.ExecuteInTransaction(isolationLevel,
+            => strategy.ExecuteInTransaction(
+                context,
+                isolationLevel,
                 (c, s) =>
                     {
                         operation(c, s);
                         return true;
                     },
-                verifySucceeded, state, context);
+                verifySucceeded, state);
 
         /// <summary>
         ///     Executes the specified asynchronous operation in a transaction.
@@ -235,19 +237,21 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// </exception>
         public static Task ExecuteInTransactionAsync<TContext, TState>(
             [NotNull] this IExecutionStrategy strategy,
+            [NotNull] TContext context,
             IsolationLevel isolationLevel,
             [NotNull] Func<TContext, TState, CancellationToken, Task> operation,
             [NotNull] Func<TContext, TState, CancellationToken, Task<bool>> verifySucceeded,
             [CanBeNull] TState state,
-            [NotNull] TContext context,
             CancellationToken cancellationToken = default(CancellationToken))
             where TContext : DbContext
-            => strategy.ExecuteInTransactionAsync(isolationLevel,
+            => strategy.ExecuteInTransactionAsync(
+                context,
+                isolationLevel,
                 async (c, s, ct) =>
                     {
                         await operation(c, s, ct);
                         return true;
-                    }, verifySucceeded, state, context, cancellationToken);
+                    }, verifySucceeded, state, cancellationToken);
 
         /// <summary>
         ///     Executes the specified operation in a transaction and returns the result.
@@ -272,13 +276,13 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// </exception>
         public static TResult ExecuteInTransaction<TContext, TState, TResult>(
             [NotNull] this IExecutionStrategy strategy,
+            [NotNull] TContext context,
             IsolationLevel isolationLevel,
             [NotNull] Func<TContext, TState, TResult> operation,
             [NotNull] Func<TContext, TState, bool> verifySucceeded,
-            [CanBeNull] TState state,
-            [NotNull] TContext context)
+            [CanBeNull] TState state)
             where TContext : DbContext
-            => ExecutionStrategyExtensions.ExecuteInTransaction(strategy, operation, verifySucceeded, state, context, c => c.Database.BeginTransaction(isolationLevel));
+            => ExecutionStrategyExtensions.ExecuteInTransaction(strategy, context, operation, verifySucceeded, state, c => c.Database.BeginTransaction(isolationLevel));
 
         /// <summary>
         ///     Executes the specified asynchronous operation and returns the result.
@@ -311,14 +315,14 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// </exception>
         public static Task<TResult> ExecuteInTransactionAsync<TContext, TState, TResult>(
             [NotNull] this IExecutionStrategy strategy,
+            [NotNull] TContext context,
             IsolationLevel isolationLevel,
             [NotNull] Func<TContext, TState, CancellationToken, Task<TResult>> operation,
             [NotNull] Func<TContext, TState, CancellationToken, Task<bool>> verifySucceeded,
             [CanBeNull] TState state,
-            [NotNull] TContext context,
             CancellationToken cancellationToken = default(CancellationToken))
             where TContext : DbContext
             => ExecutionStrategyExtensions.ExecuteInTransactionAsync(
-                strategy, operation, verifySucceeded, state, context, (c, ct) => c.Database.BeginTransactionAsync(isolationLevel, ct), cancellationToken);
+                strategy, context, operation, verifySucceeded, state, (c, ct) => c.Database.BeginTransactionAsync(isolationLevel, ct), cancellationToken);
     }
 }
