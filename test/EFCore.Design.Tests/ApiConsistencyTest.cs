@@ -3,11 +3,17 @@
 
 using System.Reflection;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Microsoft.EntityFrameworkCore
 {
     public class ApiConsistencyTest : ApiConsistencyTestBase
     {
+        protected override void AddServices(ServiceCollection serviceCollection)
+        {
+            throw new System.NotImplementedException();
+        }
+
         protected override Assembly TargetAssembly => typeof(OperationExecutor).GetTypeInfo().Assembly;
     }
 }
