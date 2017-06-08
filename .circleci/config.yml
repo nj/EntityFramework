@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: ubuntu:trusty
+      - image: microsoft/dotnet:2.0-sdk
 
     environment:
       - DOTNET_CLI_TELEMETRY_OPTOUT: true
@@ -14,8 +14,11 @@ jobs:
     steps:
       - run:
           name: Install missing packages
-          command: apt update && apt install -y git openssh-client uuid-runtime wget unzip libunwind8-dev libssl-dev libicu-dev
+          command: apt update && apt install -y git openssh-client
       - checkout
       - run:
+          name: Restore
+          command: dotnet restore
+      - run:
           name: Run tests
-          command: ./build.sh
+          command: dotnet test
