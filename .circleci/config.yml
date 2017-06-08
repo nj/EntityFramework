@@ -8,6 +8,8 @@ jobs:
       - DOTNET_CLI_TELEMETRY_OPTOUT: true
       - DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
 
+    working_directory: ~/circleci-entityframework
+
     steps:
       - checkout
       - run:
