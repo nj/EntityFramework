@@ -14,7 +14,7 @@ jobs:
     steps:
       - run:
           name: Install missing packages
-          command: apt update && apt install -y git ssh-client uuid-runtime wget unzip
+          command: apt update && apt install -y git ssh-client uuid-runtime wget unzip libunwind-dev libssl-dev libicu-dev
       - checkout
       - run:
           name: Run tests
