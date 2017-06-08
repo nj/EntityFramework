@@ -13,7 +13,7 @@ jobs:
     steps:
       - run:
           name: Install missing packages
-          command: apt update && apt install -y git ssh-client wget unzip
+          command: apt update && apt install -y git ssh-client uuid-runtime wget unzip
       - checkout
       - run:
           name: Run tests
