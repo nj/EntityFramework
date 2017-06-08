@@ -11,6 +11,9 @@ jobs:
     working_directory: ~/circleci-entityframework
 
     steps:
+      - run:
+          name: Install missing packages
+          command: apt update && apt install -y git ssh-client wget unzip
       - checkout
       - run:
           name: Run tests
